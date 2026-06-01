@@ -3,20 +3,22 @@ package main
 import "net"
 
 type User struct {
-	Name string
-	Addr string
-	C    chan string
-	Conn net.Conn
+	Name   string
+	Addr   string
+	C      chan string
+	conn   net.Conn
+	server *Server
 }
 
 // NewUser 创建用户的API
-func NewUser(conn net.Conn) *User {
+func NewUser(conn net.Conn, server *Server) *User {
 	userAddr := conn.RemoteAddr().String()
 	user := &User{
-		Name: userAddr,
-		Addr: userAddr,
-		C:    make(chan string),
-		Conn: conn,
+		Name:   userAddr,
+		Addr:   userAddr,
+		C:      make(chan string),
+		conn:   conn,
+		server: server,
 	}
 	go user.ListenMessage()
 	return user
@@ -26,6 +28,26 @@ func NewUser(conn net.Conn) *User {
 func (u *User) ListenMessage() {
 	for {
 		msg := <-u.C
-		u.Conn.Write([]byte(msg + "\n"))
+		u.conn.Write([]byte(msg + "\n"))
 	}
+}
+
+func (u *User) Online() {
+	//用户上线，将用户加入OnlineMap中
+	u.server.mapLock.Lock()
+	u.server.OnlineMap[u.Name] = u
+	u.server.mapLock.Unlock()
+	//广播当前用户上线消息
+	u.server.Broadcast(u, "已上线")
+}
+func (u *User) Offline() {
+	//用户下线，将用户加入OnlineMap中
+	u.server.mapLock.Lock()
+	delete(u.server.OnlineMap, u.Name)
+	u.server.mapLock.Unlock()
+	//广播当前用户下线消息
+	u.server.Broadcast(u, "已下线")
+}
+func (u *User) DoMessage(msg string) {
+	u.server.Broadcast(u, msg)
 }

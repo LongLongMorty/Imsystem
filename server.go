@@ -53,27 +53,19 @@ func (s *Server) Start() {
 }
 func (s *Server) Handler(conn net.Conn) {
 	//用户上线，将用户加入OnlineMap中
-	user := NewUser(conn)
-	s.mapLock.Lock()
-	s.OnlineMap[user.Name] = user
-	s.mapLock.Unlock()
-
-	//广播当前用户上线消息
-	s.Broadcast(user, "已上线")
+	user := NewUser(conn, s)
+	user.Online()
 	// 接受客户端发送的消息
 	go func() {
 		buf := make([]byte, 4096)
 		for {
 			n, err := conn.Read(buf)
 			if err != nil {
-				s.Broadcast(user, "下线了")
-				s.mapLock.Lock()
-				delete(s.OnlineMap, user.Name)
-				s.mapLock.Unlock()
+				user.Offline()
 				break
 			}
 			msg := string(buf[:n-1]) // 去掉换行符
-			s.Broadcast(user, msg)
+			user.DoMessage(msg)
 		}
 	}()
 	// 阻塞客户端
