@@ -1,6 +1,9 @@
 package main
 
-import "net"
+import (
+	"net"
+	"strings"
+)
 
 type User struct {
 	Name   string
@@ -78,6 +81,37 @@ func (u *User) DoMessage(msg string) {
 			u.server.mapLock.Unlock()
 			u.SendMsg("您已经更新用户名:" + u.Name + "\n")
 		}
+
+	} else if len(msg) > 3 && msg[:3] == "to|" {
+		// 消息格式：to|张三|消息内容
+		// 1. 获取对方用户名和消息内容
+		remoteName := strings.Split(msg[3:], "|")[0]
+		content := strings.Split(msg[3:], "|")[1]
+		for i, s := range msg[3:] {
+			if s == '|' {
+				remoteName = msg[3 : i+3]
+				content = msg[i+4:]
+				break
+			}
+		}
+		if remoteName == "" || content == "" {
+			u.SendMsg("消息格式不正确，请使用\"to|张三|消息内容\"格式\n")
+			return
+		}
+		// 2. 查找对方用户
+		u.server.mapLock.RLock()
+		remoteUser, ok := u.server.OnlineMap[remoteName]
+		u.server.mapLock.RUnlock()
+		if !ok {
+			u.SendMsg("该用户名不存在\n")
+			return
+		}
+		if remoteUser == u {
+			u.SendMsg("不能给自己发送消息\n")
+			return
+		}
+		// 3. 发送消息
+		remoteUser.SendMsg(u.Name + "对您说:" + content + "\n")
 
 	} else {
 		u.server.Broadcast(u, msg)
