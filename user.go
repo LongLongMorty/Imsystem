@@ -32,6 +32,7 @@ func (u *User) ListenMessage() {
 	}
 }
 
+// Online 用户上线
 func (u *User) Online() {
 	//用户上线，将用户加入OnlineMap中
 	u.server.mapLock.Lock()
@@ -40,6 +41,8 @@ func (u *User) Online() {
 	//广播当前用户上线消息
 	u.server.Broadcast(u, "已上线")
 }
+
+// Offline 用户下线
 func (u *User) Offline() {
 	//用户下线，将用户加入OnlineMap中
 	u.server.mapLock.Lock()
@@ -48,6 +51,25 @@ func (u *User) Offline() {
 	//广播当前用户下线消息
 	u.server.Broadcast(u, "已下线")
 }
+
+// DoMessage 用户端发送消息时，执行DoMessage方法
 func (u *User) DoMessage(msg string) {
-	u.server.Broadcast(u, msg)
+	if msg == "who" {
+		// 查询当前在线用户都有哪些
+		u.server.mapLock.RLock()
+		for _, user := range u.server.OnlineMap {
+			onlineMsg := "[" + user.Addr + "]" + user.Name + ":" + "在线...\n"
+			u.SendMsg(onlineMsg)
+		}
+		u.server.mapLock.RUnlock()
+
+	} else {
+		u.server.Broadcast(u, msg)
+	}
+}
+
+// SendMsg 给当前用户发送消息
+func (u *User) SendMsg(msg string) {
+	u.conn.Write([]byte(msg))
+
 }
