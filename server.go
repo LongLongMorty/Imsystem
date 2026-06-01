@@ -60,7 +60,22 @@ func (s *Server) Handler(conn net.Conn) {
 
 	//广播当前用户上线消息
 	s.Broadcast(user, "已上线")
-
+	// 接受客户端发送的消息
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := conn.Read(buf)
+			if err != nil {
+				s.Broadcast(user, "下线了")
+				s.mapLock.Lock()
+				delete(s.OnlineMap, user.Name)
+				s.mapLock.Unlock()
+				break
+			}
+			msg := string(buf[:n-1]) // 去掉换行符
+			s.Broadcast(user, msg)
+		}
+	}()
 	// 阻塞客户端
 	select {}
 
