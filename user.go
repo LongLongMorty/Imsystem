@@ -63,6 +63,22 @@ func (u *User) DoMessage(msg string) {
 		}
 		u.server.mapLock.RUnlock()
 
+	} else if len(msg) > 7 && msg[:7] == "rename|" {
+		// 消息格式：rename|张三
+		newName := msg[7:]
+		// 判断name是否存在
+		_, ok := u.server.OnlineMap[newName]
+		if ok {
+			u.SendMsg("当前用户名被占用\n")
+		} else {
+			u.server.mapLock.Lock()
+			delete(u.server.OnlineMap, u.Name) // 删除原来的key
+			u.Name = newName
+			u.server.OnlineMap[u.Name] = u // 以新的key加入map
+			u.server.mapLock.Unlock()
+			u.SendMsg("您已经更新用户名:" + u.Name + "\n")
+		}
+
 	} else {
 		u.server.Broadcast(u, msg)
 	}
