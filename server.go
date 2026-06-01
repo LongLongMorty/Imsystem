@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -55,6 +56,8 @@ func (s *Server) Handler(conn net.Conn) {
 	//用户上线，将用户加入OnlineMap中
 	user := NewUser(conn, s)
 	user.Online()
+	// 监听用户是否活跃的goroutine
+	isLive := make(chan bool)
 	// 接受客户端发送的消息
 	go func() {
 		buf := make([]byte, 4096)
@@ -66,10 +69,20 @@ func (s *Server) Handler(conn net.Conn) {
 			}
 			msg := string(buf[:n-1]) // 去掉换行符
 			user.DoMessage(msg)
+			isLive <- true
 		}
 	}()
 	// 阻塞客户端
-	select {}
+	for {
+		select {
+		case <-isLive:
+		case <-time.After(time.Second * 10):
+			user.SendMsg("你被踢了")
+			close(user.C)
+			conn.Close()
+			return
+		}
+	}
 
 }
 func (s *Server) Broadcast(user *User, msg string) {
