@@ -30,7 +30,10 @@ func NewUser(conn net.Conn, server *Server) *User {
 // ListenMessage 监听当前User channel的方法，一旦有消息，就直接发送给对端客户端
 func (u *User) ListenMessage() {
 	for {
-		msg := <-u.C
+		msg, ok := <-u.C
+		if !ok {
+			break
+		}
 		u.conn.Write([]byte(msg + "\n"))
 	}
 }
@@ -85,15 +88,14 @@ func (u *User) DoMessage(msg string) {
 	} else if len(msg) > 3 && msg[:3] == "to|" {
 		// 消息格式：to|张三|消息内容
 		// 1. 获取对方用户名和消息内容
-		remoteName := strings.Split(msg[3:], "|")[0]
-		content := strings.Split(msg[3:], "|")[1]
-		for i, s := range msg[3:] {
-			if s == '|' {
-				remoteName = msg[3 : i+3]
-				content = msg[i+4:]
-				break
-			}
+		parts := strings.Split(msg[3:], "|")
+		if len(parts) < 2 {
+			u.SendMsg("消息格式不正确，请使用\"to|张三|消息内容\"格式\n")
+			return
 		}
+		remoteName := parts[0]
+		content := parts[1]
+
 		if remoteName == "" || content == "" {
 			u.SendMsg("消息格式不正确，请使用\"to|张三|消息内容\"格式\n")
 			return
