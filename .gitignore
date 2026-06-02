@@ -1,0 +1,21 @@
+# Build environment
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test output
+*.test
+*.out
+cover.out
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE / OS Editor specifics
+.idea/
+.vscode/
+.DS_Store
+
